@@ -42,7 +42,7 @@ while getopts "hv" OPT; do
 done
 
 if [ $UID -ne 0 ]; then
-  echo "Musisz być zalogowany jako root"
+  zenity --info --text="Musisz być zalogowany jako root"
   exit
 fi
 
@@ -119,15 +119,24 @@ addUser(){
     fi
     CMD="$CMD $NAME"
     eval "$CMD"
+    zenity --info --text="Dodano użytkownika $NAME"
     starter
 }
 
 delUser(){
     printUsers
+    if [[ $? -ne 0 ]]; then
+        starter
+        return
+    fi
+    SUMA=""
     for OPTION in $ODP; do
         CMD="userdel -r $OPTION"
+        SUMA="$SUMA $OPTION,"
         eval "$CMD"
     done
+    SUMA=${SUMA%?}
+    zenity --info --text="Pomyślnie usunięto: $SUMA"
     starter
 }
 
@@ -156,8 +165,9 @@ manageUser(){
         else
             CMD="usermod -l '$NAME' $ODP1"
             eval "$CMD"
+            zenity --info --text="Zmieniono nazwę użytkownika $ODP1 na $NAME"
         fi
-        manageUser "$ODP1"
+        manageUser "$NAME"
         ;;
     "Zmień hasło")
         PASSWORD=`zenity --entry --text "Wprowadz nowe hasło:"`
@@ -169,6 +179,7 @@ manageUser(){
         else
             CMD='echo "$ODP1:$PASSWORD" | chpasswd > /dev/null 2>&1'
             eval "$CMD"
+            zenity --info --text="Zmieniono hasło użytkownika $ODP1"
         fi
         manageUser "$ODP1"
 		;;
@@ -179,6 +190,7 @@ manageUser(){
         else
             CMD="usermod -c '$FULL_NAME' $ODP1"
             eval "$CMD"
+            zenity --info --text="Zmieniono pełną nazwę użytkownika $ODP1 na $FULL_NAME"
         fi
         manageUser "$ODP1"
 		;;
@@ -189,6 +201,7 @@ manageUser(){
         else
             CMD="usermod -d $HOME_FOLDER $ODP1"
             eval "$CMD"
+            zenity --info --text="Zmieniono katalog domowy użytkownika $ODP1 na $HOME_FOLDER"
         fi
         manageUser "$ODP1"
 		;;
@@ -200,32 +213,39 @@ manageUser(){
             EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
         	CMD="usermod -e $EXPIRES $ODP1"
             eval "$CMD"
+            zenity --info --text="Zmieniono datę wygaśnięcia konta użytkownika $ODP1 na $EXPIRES"
 	    fi
         manageUser "$ODP1"
         ;;
 	"Dodaj do grupy")
         printGroups
         CMD="usermod -G"
+        SUMA=""
         if [[ -z "$ODP" ]]; then
             zenity --info --text="Nie wybrano ani jednej grupy"
         else
             for OPTION in $ODP; do
                 CMD="$CMD$OPTION,"
+                SUMA="$SUMA, $OPTION"
             done
             CMD=${CMD%?}
             CMD="$CMD $ODP1"
             eval "$CMD"
         fi
+        SUMA=${SUMA%?}
+        zenity --info --text="Dodano użytkownika $ODP1 do grup(y): $SUMA"
         manageUser "$ODP1"
 		;;
 	"Zablokuj użytkownika") 
         CMD="usermod -L $ODP1"
         eval "$CMD"
+        zenity --info --text="Zablokowano użytkownika $ODP1"
         manageUser "$ODP1"
         ;;
     "Odblokuj użytkownika")
         CMD="usermod -U $ODP1"
         eval "$CMD"
+        zenity --info --text="Odblokowano użytkownika $ODP1"
         manageUser "$ODP1"
         ;;
     esac
@@ -271,15 +291,24 @@ addGroup(){
 	fi
     CMD="$CMD $NAME"
     eval "$CMD"
+    zenity --info --text="Dodano grupę $NAME"
     starter
 }
 
 delGroup(){
     printGroups
+    if [[ $? -ne 0 ]]; then
+        starter
+        return
+    fi
+    SUMA=""
     for OPTION in $ODP; do
         CMD="groupdel $OPTION"
+        SUMA="$SUMA, $OPTION"
         eval "$CMD"
     done
+    SUMA=${SUMA%?}
+    zenity --info --text="Pomyślnie usunięto: $SUMA"
     starter
 }
 
@@ -309,7 +338,8 @@ manageGroup(){
             CMD="groupmod -n '$NAME' $ODP1"
             eval "$CMD"
         fi
-        manageGroup "$ODP1"
+        zenity --info --text="Zmieniono nazwę grupy $ODP1 na $NAME"
+        manageGroup "$NAME"
         ;;
     "Zmień hasło")
         PASSWORD=`zenity --entry --text "Wprowadz nowe hasło:"`
@@ -322,6 +352,7 @@ manageGroup(){
             CMD="groupmod -p $PASSWORD $ODP1"
             eval "$CMD"
         fi
+        zenity --info --text="Zmieniono hasło grupy $ODP1"
         manageGroup "$ODP1"
         ;;
     "Zmień katalog domowy")
@@ -332,6 +363,7 @@ manageGroup(){
             CMD="groupmod -R $HOME_FOLDER $ODP1"
             eval "$CMD"
         fi
+        zenity --info --text="Zmieniono katalog domowy grupy $ODP1 na $HOME_FOLDER"
         manageGroup "$ODP1"
         ;;
     esac
@@ -391,6 +423,7 @@ addMany(){
         eval "$CMD"
         echo "$NAME$I $PASSWD" >> $FILE
     done
+    zenity --info --text="Dodano $NUMBER użytkowników o nazwie podstawowej $NAME"
     starter
 }
 
@@ -429,21 +462,29 @@ starter(){
     fi
 }
 
-# zenity --text-info --html --title="Informacja" --text="eaksodginfbgid" \
-#        --checkbox="Przeczytałem." --width=600 --height=400 --filename=/dev/stdin <<EOF
-#         <html><big><b>Program do zarządzania użytkownikami i grupami</b></big>
-#             <p>Wersja 1.0</p>
-#             <p>Autor: Dawid Glazik</p>
-#             <p>Opis programu:</p>
-#             <p>Tu wpisz opis swojego programu.</p>
-#         </html>
-# EOF
-# case $? in
-#     0)
-#         starter
-# 	;;
-#     -1)
-#         echo "Wystąpił nieoczekiwany błąd."
-# 	;;
-# esac
-starter
+zenity --text-info --html --title="Informacja" 2>/dev/null\
+       --checkbox="Przeczytałem." --width=600 --height=400 --filename=/dev/stdin <<EOF
+        <html><h3>Program do zarządzania użytkownikami i grupami</h3>
+            <p>Wersja 1.0</p>
+            <p>Autor: Dawid Glazik</p>
+            <p>Opis programu:</p>
+            <p>Program wykorzystuje bibliotekę zenity. Do poprawnego 
+            działania wymagane jest zainstalowanie polecenia finger. 
+            Inspiracją do stworzenia tego programu była przystawka 
+            lusrmgr.msc z Windowsa. Program pozwala na wykonanie takich 
+            operacji jak: dodanie użytkownika, usunięcie użytkownika, 
+            zmianę parametrów użytkownika, dodanie grupy, usunięcie 
+            grupy, modyfikację grupy, dodanie szeregu użytkowników na 
+            podstawie podanych danych. Hasła do wygenerowanych kont 
+            użytkowników pojawią się w pliku o nazwie 
+            „bazowa_nazwa_użytkownika_PASSWORDS”.</p>
+        </html>
+EOF
+case $? in
+    0)
+        starter
+	;;
+    -1)
+        echo "Wystąpił nieoczekiwany błąd."
+	;;
+esac
