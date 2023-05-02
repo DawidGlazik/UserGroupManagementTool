@@ -1,13 +1,34 @@
 #!/bin/bash
 
 help(){
+    echo ""
+    echo "OPIS:"
+    echo -e "\tTen skrypt pozwala na zarządzanie użytkownikami w formie graficznej. Umożliwia takie operacje jak:"
+    echo -e "\t- dodawanie użytkowników,"
+    echo -e "\t- usuwanie użytkowników,"
+    echo -e "\t- zmianę składowych użytkowników (nazwa, hasło, itd.),"
+    echo -e "\t- dodawanie grup,"
+    echo -e "\t- usuwanie grup,"
+    echo -e "\t- dodawanie wielu użytkowników na podstawie szablonu"
+    echo "SPOSÓB UŻYCIA:"
+    echo -e "\t./lusrmgr.sh [-h] [-v]"
+    echo "OPCJE:"
+    echo -e "\t-h\t\tWyświetl ten tekst pomocy."
+    echo -e "\t-v\t\tWywietl informacje o wersji i autorze."
+    echo "PRZYKŁADY UŻYCIA:"
+    echo -e "\t./lusrmgr.sh"
+    echo -e "\t./lusrmgr.sh -h"
+    echo -e "\t./lusrmgr.sh -v"
+    echo ""
     exit
 }
 
 ver(){
-    echo "Autor: Dawid Glazik";
-    echo "Nr indeksu: 193069";
-    echo "Grupa: 5";
+    echo ""
+    echo "AUTOR: Dawid Glazik";
+    echo "NR INDEKSU: 193069";
+    echo "GRUPA: 5";
+    echo ""
     exit
 }
 
@@ -349,7 +370,7 @@ addMany(){
             break
         fi
     done
-    TMP="_PASWORDS"
+    TMP="_PASSWORDS"
     FILE="$NAME$TMP"
     for ((I=1; I<=$NUMBER; I++))
     do
