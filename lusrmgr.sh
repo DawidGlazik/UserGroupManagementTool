@@ -52,7 +52,10 @@ formForNewUser(){
         --add-password="Powtórz hasło" \
         --add-calendar="Data wygaśnięcia" \
         --separator=","`
-
+    if [[ $? -ne 0 ]]; then
+        starter
+        return 2
+    fi
     NAME=`echo $FORM | cut -d ',' -f1`
     FULL_NAME=`echo $FORM | cut -d ',' -f2`
     HOME_FOLDER=`echo $FORM | cut -d ',' -f3`
@@ -65,6 +68,9 @@ formForNewUser(){
 addUser(){
     while [[ True ]]; do
         formForNewUser
+        if [[ $? -eq 2 ]]; then
+            return
+        fi
         if [[ -z $NAME ]]; then
             zenity --info --text="Musisz podać nazwę użytkownika"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
@@ -92,6 +98,7 @@ addUser(){
     fi
     CMD="$CMD $NAME"
     eval "$CMD"
+    starter
 }
 
 delUser(){
@@ -210,7 +217,10 @@ formForNewGroup(){
         --add-password="Hasło" \
         --add-password="Powtórz hasło" \
         --separator=","`
-
+    if [[ $? -ne 0 ]]; then
+        starter
+        return 2
+    fi
     NAME=`echo $FORM | cut -d ',' -f1`
     HOME_FOLDER=`echo $FORM | cut -d ',' -f2`
     PASSWORD=`echo $FORM | cut -d ',' -f3`
@@ -220,6 +230,9 @@ formForNewGroup(){
 addGroup(){
     while [[ True ]]; do
         formForNewGroup
+        if [[ $? -eq 2 ]]; then
+            return
+        fi
         if [[ -z $NAME ]]; then
             zenity --info --text="Musisz podać nazwę grupy"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
@@ -237,6 +250,7 @@ addGroup(){
 	fi
     CMD="$CMD $NAME"
     eval "$CMD"
+    starter
 }
 
 delGroup(){
@@ -249,10 +263,22 @@ delGroup(){
 }
 
 manageGroup(){
-    MENU=(`getent group | cut -d: -f1`)
-    ODP1=`zenity --list --column=Menu "${MENU[@]}" --height=400 --width=300 --title="Zarzadzaj Uzytkownikami"`
+    if [[ -z $1 ]]; then
+        MENU=(`getent group | cut -d: -f1`)
+        ODP1=`zenity --list --column=Menu "${MENU[@]}" --height=400 --width=300 --title="Zarzadzaj Grupą"`
+        if [[ $? -ne 0 ]]; then
+            starter
+            return
+        fi
+    else
+        ODP1="$1"
+    fi
     MENU=("Zmień nazwę" "Zmień hasło" "Zmień katalog domowy")
     ODP2=`zenity --list --column=Menu "${MENU[@]}" --height=400 --width=300 --title="Zarzadzaj - $ODP1"`
+    if [[ $? -ne 0 ]]; then
+        manageGroup
+        return
+    fi
     case $ODP2 in
 	"Zmień nazwę")
         NAME=`zenity --entry --text "Wprowadz nową nazwę:"`
@@ -262,6 +288,7 @@ manageGroup(){
             CMD="groupmod -n '$NAME' $ODP1"
             eval "$CMD"
         fi
+        manageGroup "$ODP1"
         ;;
     "Zmień hasło")
         PASSWORD=`zenity --entry --text "Wprowadz nowe hasło:"`
@@ -274,6 +301,7 @@ manageGroup(){
             CMD="groupmod -p $PASSWORD $ODP1"
             eval "$CMD"
         fi
+        manageGroup "$ODP1"
         ;;
     "Zmień katalog domowy")
         HOME_FOLDER=`zenity --entry --text "Podaj nowy katalog domowy:"`
@@ -283,6 +311,7 @@ manageGroup(){
             CMD="groupmod -R $HOME_FOLDER $ODP1"
             eval "$CMD"
         fi
+        manageGroup "$ODP1"
         ;;
     esac
 }
@@ -295,7 +324,10 @@ formForManyUsers(){
         --add-entry="Grupa" \
         --add-calendar="Data wygaśnięcia" \
         --separator=","`
-
+    if [[ $? -ne 0 ]]; then
+        starter
+        return 2
+    fi
     NAME=`echo $FORM | cut -d ',' -f1`
     NUMBER=`echo $FORM | cut -d ',' -f2`
     HOME_FOLDER=`echo $FORM | cut -d ',' -f3`
@@ -306,6 +338,9 @@ formForManyUsers(){
 addMany(){
     while [[ True ]]; do
         formForManyUsers
+        if [[ $? -eq 2 ]]; then
+            return
+        fi
         if [[ -z $NAME ]]; then
             zenity --info --text="Musisz podać nazwę użytkowników"
         elif [[ -z $NUMBER ]]; then
@@ -332,9 +367,10 @@ addMany(){
         fi
         CMD="$CMD -p $PASSWD"
         CMD="$CMD $NAME$I"
-        #eval "$CMD"
-        #echo "$NAME$I $PASSWD" >> $FILE
+        eval "$CMD"
+        echo "$NAME$I $PASSWD" >> $FILE
     done
+    starter
 }
 
 info(){
