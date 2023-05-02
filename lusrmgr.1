@@ -1,0 +1,30 @@
+.TH LUSRMGR 1 "02.05.2023" "ver. 1.0" "LUSRMGR MANUAL"
+.SH NAME
+lusrmgr - program służący do kompleksowego zarządzania użytkownikami i grupami
+.SH SYNOPSIS
+lusrmgr [-h] [-v]
+.SH DESCRIPTION
+Program wykorzystuje bibliotekę zenity. Do poprawnego działania wymagane jest zainstalowanie polecenia finger. Inspiracją do stworzenia tego programu była przystawka lusrmgr.msc z Windowsa. Program pozwala na wykonanie takich operacji jak: dodanie użytkownika, usunięcie użytkownika, zmianę parametrów użytkownika, dodanie grupy, usunięcie grupy, modyfikację grupy, dodanie szeregu użytkowników na podstawie podanych danych. Hasła do wygenerowanych kont użytkowników pojawią się w pliku o nazwie „bazowa_nazwa_użytkownika_PASSWORDS”.
+.SH OPTIONS
+.IP "-h" 4
+Wyświetlenie pomocy
+.IP "-v" 4
+Wyświetlenie wersji i autora
+.SH EXAMPLES
+.PP
+Zwykłe odpalenie programu:
+  ./lusrmgr.sh
+.PP
+Wyświetlenie pomocy:
+  ./lusrmgr.sh -h
+.PP
+Wyświetlenie autora i wersji programu:
+  ./lusrmgr.sh -v
+.SH AUTHOR
+Program napisany przez: Dawid Glazik (https://github.com/DawidGlazik)
+.SH REPORTING BUGS
+https://github.com/DawidGlazik/UserGroupManagementTool
+.SH COPYRIGHTS
+Free to use :)
+.SH SEE ALSO
+https://github.com/DawidGlazik
