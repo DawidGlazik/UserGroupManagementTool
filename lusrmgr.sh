@@ -42,7 +42,7 @@ while getopts "hv" OPT; do
 done
 
 if [ $UID -ne 0 ]; then
-  zenity --info --text="Musisz być zalogowany jako root"
+  zenity --error --text="Musisz być zalogowany jako root"
   exit
 fi
 
@@ -93,22 +93,41 @@ addUser(){
             return
         fi
         if [[ -z $NAME ]]; then
-            zenity --info --text="Musisz podać nazwę użytkownika"
+            zenity --error --text="Musisz podać nazwę użytkownika"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
-            zenity --info --text="Hasła nie są zgodne"
+            zenity --error --text="Hasła nie są zgodne"
         else
             break
         fi
     done
     CMD="useradd -m"
     if [[ "$FULL_NAME" ]]; then
-        	CMD="$CMD -c '$FULL_NAME'"
+            if [[ "$FULL_NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+        	    CMD="$CMD -c '$FULL_NAME'"
+            else
+                zenity --error --text="Pełna nazwa musi rozpoczynać się od litery."
+                starter
+                return
+            fi
 	fi
     if [[ "$HOME_FOLDER" ]]; then
-        	CMD="$CMD -d $HOME_FOLDER"
+            if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+        	    CMD="$CMD -d $HOME_FOLDER"
+            else
+                zenity --error --text="Niepoprawny adres folderu."
+                starter
+                return
+            fi
 	fi
     if [[ "$GROUP" ]]; then
-        	CMD="$CMD -g $GROUP"
+            LIST=(`getent group | cut -d: -f1`)
+            if [[ "${LIST[@]}" =~ "$GROUP" ]]; then
+                CMD="$CMD -g $GROUP"
+            else
+                zenity --error --text="Taka grupa nie istnieje"
+                starter
+                return
+            fi
 	fi
     if [[ "$EXPIRES" ]]; then
             EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
@@ -117,7 +136,20 @@ addUser(){
     if [[ "$PASSWORD" && $PASSWORD -eq $CONFIRM_PASSWD ]]; then
         CMD="$CMD -p $PASSWORD"
     fi
-    CMD="$CMD $NAME"
+    if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+        LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
+            if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                zenity --error --text="Użytkownik o takiej nazwie już istnieje"
+                starter
+                return
+            else
+                CMD="$CMD $NAME"
+            fi
+    else
+        zenity --error --text="Nazwa musi rozpoczynać się od litery."
+        starter
+        return
+    fi
     eval "$CMD"
     zenity --info --text="Dodano użytkownika $NAME"
     starter
@@ -126,6 +158,11 @@ addUser(){
 delUser(){
     printUsers
     if [[ $? -ne 0 ]]; then
+        starter
+        return
+    fi
+    if [[ -z "$ODP" ]]; then
+        zenity --error --text="Nie wybrano żadnego użytkownika."
         starter
         return
     fi
@@ -161,21 +198,37 @@ manageUser(){
 	"Zmień nazwę")
 		NAME=`zenity --entry --text "Wprowadz nową nazwę:"`
         if [[ -z "$NAME" ]]; then
-            zenity --info --text="Nie wprowadzono nazwy"
+            zenity --error --text="Nie wprowadzono nazwy"
+            manageUser "$ODP1"
+            return
         else
-            CMD="usermod -l '$NAME' $ODP1"
-            eval "$CMD"
-            zenity --info --text="Zmieniono nazwę użytkownika $ODP1 na $NAME"
+            if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+                LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
+                    if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                        zenity --error --text="Użytkownik o takiej nazwie już istnieje"
+                        manageUser "$ODP1"
+                        return
+                    else
+                        CMD="usermod -l '$NAME' $ODP1"
+                        eval "$CMD"
+                        zenity --info --text="Zmieniono nazwę użytkownika $ODP1 na $NAME"
+                        manageUser "$NAME"
+                        return
+                    fi
+            else
+                zenity --error --text="Nazwa musi rozpoczynać się od litery."
+                manageUser "$ODP1"
+                return
+            fi
         fi
-        manageUser "$NAME"
         ;;
     "Zmień hasło")
         PASSWORD=`zenity --entry --text "Wprowadz nowe hasło:"`
         CONFIRM_PASSWD=`zenity --entry --text "Powtórz nowe hasło:"`
         if [[ -z "$PASSWORD" ]]; then
-            zenity --info --text="Nie wprowadzono hasła"
+            zenity --error --text="Nie wprowadzono hasła"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
-            zenity --info --text="Hasła nie są takie same"
+            zenity --error --text="Hasła nie są takie same"
         else
             CMD='echo "$ODP1:$PASSWORD" | chpasswd > /dev/null 2>&1'
             eval "$CMD"
@@ -186,29 +239,46 @@ manageUser(){
     "Zmień pełną nazwę")
         FULL_NAME=`zenity --entry --text "Podaj nową pełną nazwę:"`
         if [[ -z "$FULL_NAME" ]]; then
-            zenity --info --text="Nie wprowadzono pełnej nazwy"
+            zenity --error --text="Nie wprowadzono pełnej nazwy"
+            manageUser "$ODP1"
         else
-            CMD="usermod -c '$FULL_NAME' $ODP1"
-            eval "$CMD"
-            zenity --info --text="Zmieniono pełną nazwę użytkownika $ODP1 na $FULL_NAME"
+            if [[ "$FULL_NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+        	    CMD="usermod -c '$FULL_NAME' $ODP1"
+                eval "$CMD"
+                zenity --info --text="Zmieniono pełną nazwę użytkownika $ODP1 na $FULL_NAME"
+                manageUser "$ODP1"
+                return
+            else
+                zenity --error --text="Pełna nazwa musi rozpoczynać się od litery."
+                manageUser "$ODP1"
+                return
+            fi
         fi
-        manageUser "$ODP1"
 		;;
 	"Zmień katalog domowy")
         HOME_FOLDER=`zenity --entry --text "Podaj nowy katalog domowy:"`
         if [[ -z "$HOME_FOLDER" ]]; then
-            zenity --info --text="Nie wprowadzono ścieżki dostępu"
+            zenity --error --text="Nie wprowadzono ścieżki dostępu"
+            manageUser "$ODP1"
+            return
         else
-            CMD="usermod -d $HOME_FOLDER $ODP1"
-            eval "$CMD"
-            zenity --info --text="Zmieniono katalog domowy użytkownika $ODP1 na $HOME_FOLDER"
+            if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+        	    CMD="usermod -d $HOME_FOLDER $ODP1"
+                eval "$CMD"
+                zenity --info --text="Zmieniono katalog domowy użytkownika $ODP1 na $HOME_FOLDER"
+                manageUser "$ODP1"
+                return
+            else
+                zenity --error --text="Niepoprawny adres folderu."
+                manageUser "$ODP1"
+                return
+            fi
         fi
-        manageUser "$ODP1"
 		;;
 	"Zmień datę wygaśnięcia")
         EXPIRES=`zenity --calendar --title="Wybór daty" --text="Kliknij na datę, aby ją wybrać"`
 		if [[ -z "$EXPIRES" ]]; then
-            zenity --info --text="Nie wybrano daty"
+            zenity --error --text="Nie wybrano daty"
         else
             EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
         	CMD="usermod -e $EXPIRES $ODP1"
@@ -222,7 +292,7 @@ manageUser(){
         CMD="usermod -G"
         SUMA=""
         if [[ -z "$ODP" ]]; then
-            zenity --info --text="Nie wybrano ani jednej grupy"
+            zenity --error --text="Nie wybrano ani jednej grupy"
         else
             for OPTION in $ODP; do
                 CMD="$CMD$OPTION,"
@@ -275,9 +345,9 @@ addGroup(){
             return
         fi
         if [[ -z $NAME ]]; then
-            zenity --info --text="Musisz podać nazwę grupy"
+            zenity --error --text="Musisz podać nazwę grupy"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
-            zenity --info --text="Hasła nie są zgodne"
+            zenity --error --text="Hasła nie są zgodne"
         else
             break
         fi
@@ -287,9 +357,28 @@ addGroup(){
         CMD="$CMD -p $PASSWORD"
     fi
     if [[ "$HOME_FOLDER" ]]; then
-        	CMD="$CMD -R $HOME_FOLDER"
+        if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+    	    CMD="$CMD -R $HOME_FOLDER"
+        else
+            zenity --error --text="Niepoprawny adres folderu."
+            starter
+            return
+        fi
 	fi
-    CMD="$CMD $NAME"
+    if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+        LIST=(`getent group | cut -d: -f1`)
+        if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+            zenity --error --text="Grupa o takiej nazwie już istnieje"
+            starter
+            return
+        else
+            CMD="$CMD $NAME"
+        fi
+    else
+        zenity --error --text="Nazwa musi rozpoczynać się od litery."
+        starter
+        return
+    fi
     eval "$CMD"
     zenity --info --text="Dodano grupę $NAME"
     starter
@@ -298,6 +387,11 @@ addGroup(){
 delGroup(){
     printGroups
     if [[ $? -ne 0 ]]; then
+        starter
+        return
+    fi
+    if [[ -z "$ODP" ]]; then
+        zenity --error --text="Nie wybrano żadnej grupy."
         starter
         return
     fi
@@ -333,21 +427,37 @@ manageGroup(){
 	"Zmień nazwę")
         NAME=`zenity --entry --text "Wprowadz nową nazwę:"`
         if [[ -z "$NAME" ]]; then
-            zenity --info --text="Nie wprowadzono nazwy"
+            zenity --error --text="Nie wprowadzono nazwy"
+            manageGroup "$ODP1"
+            return
         else
-            CMD="groupmod -n '$NAME' $ODP1"
-            eval "$CMD"
+            if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+                LIST=(`getent group | cut -d: -f1`)
+                if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                    zenity --error --text="Grupa o takiej nazwie już istnieje"
+                    manageGroup "$ODP1"
+                    return
+                else
+                    CMD="groupmod -n '$NAME' $ODP1"
+                    eval "$CMD"
+                    zenity --info --text="Zmieniono nazwę grupy $ODP1 na $NAME"
+                    manageGroup "$NAME"
+                    return
+                fi
+            else
+                zenity --error --text="Nazwa musi rozpoczynać się od litery."
+                manageGroup "$ODP1"
+                return
+            fi
         fi
-        zenity --info --text="Zmieniono nazwę grupy $ODP1 na $NAME"
-        manageGroup "$NAME"
         ;;
     "Zmień hasło")
         PASSWORD=`zenity --entry --text "Wprowadz nowe hasło:"`
         CONFIRM_PASSWD=`zenity --entry --text "Powtórz nowe hasło:"`
         if [[ -z "$PASSWORD" ]]; then
-            zenity --info --text="Nie wprowadzono hasła"
+            zenity --error --text="Nie wprowadzono hasła"
         elif [[ "$PASSWORD" != "$CONFIRM_PASSWD" ]]; then
-            zenity --info --text="Hasła nie są takie same"
+            zenity --error --text="Hasła nie są takie same"
         else
             CMD="groupmod -p $PASSWORD $ODP1"
             eval "$CMD"
@@ -358,13 +468,22 @@ manageGroup(){
     "Zmień katalog domowy")
         HOME_FOLDER=`zenity --entry --text "Podaj nowy katalog domowy:"`
         if [[ -z "$HOME_FOLDER" ]]; then
-            zenity --info --text="Nie wprowadzono ścieżki dostępu"
+            zenity --error --text="Nie wprowadzono ścieżki dostępu"
+            manageGroup "$ODP1"
+            return
         else
-            CMD="groupmod -R $HOME_FOLDER $ODP1"
-            eval "$CMD"
+            if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+        	    CMD="groupmod -R $HOME_FOLDER $ODP1"
+                eval "$CMD"
+                zenity --info --text="Zmieniono katalog domowy grupy $ODP1 na $HOME_FOLDER"
+                manageGroup "$ODP1"
+                return
+            else
+                zenity --error --text="Niepoprawny adres folderu."
+                manageGroup "$ODP1"
+                return
+            fi
         fi
-        zenity --info --text="Zmieniono katalog domowy grupy $ODP1 na $HOME_FOLDER"
-        manageGroup "$ODP1"
         ;;
     esac
 }
@@ -395,9 +514,9 @@ addMany(){
             return
         fi
         if [[ -z $NAME ]]; then
-            zenity --info --text="Musisz podać nazwę użytkowników"
+            zenity --error --text="Musisz podać nazwę użytkowników"
         elif [[ -z $NUMBER ]]; then
-            zenity --info --text="Musisz podać liczbę użytkowników"
+            zenity --error --text="Musisz podać liczbę użytkowników"
         else
             break
         fi
@@ -409,17 +528,43 @@ addMany(){
         PASSWD=`openssl rand -base64 9 | head -c12`
         CMD="useradd -m"
         if [[ "$HOME_FOLDER" ]]; then
-        	CMD="$CMD -d $HOME_FOLDER$I"
+            if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+        	    CMD="$CMD -d $HOME_FOLDER$I"
+            else
+                zenity --error --text="Niepoprawny adres folderu."
+                starter
+                return
+            fi
         fi
         if [[ "$GROUP" ]]; then
+            LIST=(`getent group | cut -d: -f1`)
+            if [[ "${LIST[@]}" =~ "$GROUP" ]]; then
                 CMD="$CMD -g $GROUP"
-        fi
+            else
+                zenity --error --text="Taka grupa nie istnieje"
+                starter
+                return
+            fi
+	    fi
         if [[ "$EXPIRES" ]]; then
                 EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
                 CMD="$CMD -e $EXPIRES"
         fi
         CMD="$CMD -p $PASSWD"
-        CMD="$CMD $NAME$I"
+        if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+            LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
+                if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                    zenity --error --text="Użytkownik o takiej nazwie już istnieje"
+                    starter
+                    return
+                else
+                    CMD="$CMD $NAME"
+                fi
+        else
+            zenity --error --text="Nazwa musi rozpoczynać się od litery."
+            starter
+            return
+        fi
         eval "$CMD"
         echo "$NAME$I $PASSWD" >> $FILE
     done
@@ -429,16 +574,32 @@ addMany(){
 
 info(){
     printUsers
-    for OPTION in $ODP; do
+    if [[ $? -ne 0 ]]; then
+        starter
+        return
+    fi
+    if [[ -z "$ODP" ]]; then
+        zenity --error --text="Nie wybrano żadnego użytkownika."
+    else
+        for OPTION in $ODP; do
         CMD="finger $OPTION | tr '\t' '\n'; id $OPTION | tr ' ' '\n'; chage -l $OPTION"
         eval "$CMD" | zenity --text-info --height=400 --width=600 --title "Wynik - $OPTION"
-    done
+        done
+    fi
     starter
 }
 
 starter(){
     MENU=("Dodaj użytkownika" "Usuń użytkownika" "Zarządzaj użytkownikiem" "Dodaj grupę" "Usuń grupę" "Zarządzaj grupą" "Dodaj wiele użytkowników" "Info o użytkowniku")
     ODP=`zenity --list --column=Menu "${MENU[@]}" --height=400 --width=300 --title="Zarzadzaj Uzytkownikami"`
+    if [[ $? -ne 0 ]]; then
+        return
+    fi
+    if [[ -z "$ODP" ]]; then
+        zenity --error --text="Nie wybrano żadnej opcji."
+        starter
+        return
+    fi
     case $ODP in
         "Dodaj użytkownika")
             addUser;;
