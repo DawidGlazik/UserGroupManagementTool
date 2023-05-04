@@ -523,53 +523,59 @@ addMany(){
     done
     TMP="_PASSWORDS"
     FILE="$NAME$TMP"
-    for ((I=1; I<=$NUMBER; I++))
-    do
-        PASSWD=`openssl rand -base64 9 | head -c12`
-        CMD="useradd -m"
-        if [[ "$HOME_FOLDER" ]]; then
-            if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
-        	    CMD="$CMD -d $HOME_FOLDER$I"
-            else
-                zenity --error --text="Niepoprawny adres folderu."
-                starter
-                return
-            fi
-        fi
-        if [[ "$GROUP" ]]; then
-            LIST=(`getent group | cut -d: -f1`)
-            if [[ "${LIST[@]}" =~ "$GROUP" ]]; then
-                CMD="$CMD -g $GROUP"
-            else
-                zenity --error --text="Taka grupa nie istnieje"
-                starter
-                return
-            fi
-	    fi
-        if [[ "$EXPIRES" ]]; then
-                EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
-                CMD="$CMD -e $EXPIRES"
-        fi
-        CMD="$CMD -p $PASSWD"
-        if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
-            LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
-                if [[ "${LIST[@]}" =~ "$NAME" ]]; then
-                    zenity --error --text="Użytkownik o takiej nazwie już istnieje"
+    if [[ "$NUMBER" =~ ^[1-9]{1}\d*$ ]]; then
+        for ((I=1; I<=$NUMBER; I++))
+        do
+            PASSWD=`openssl rand -base64 9 | head -c12`
+            CMD="useradd -m"
+            if [[ "$HOME_FOLDER" ]]; then
+                if [[ "$HOME_FOLDER" =~ ^([\/]{1}.+)+$ ]]; then
+                    CMD="$CMD -d $HOME_FOLDER$I"
+                else
+                    zenity --error --text="Niepoprawny adres folderu."
                     starter
                     return
-                else
-                    CMD="$CMD $NAME"
                 fi
-        else
-            zenity --error --text="Nazwa musi rozpoczynać się od litery."
-            starter
-            return
-        fi
-        eval "$CMD"
-        echo "$NAME$I $PASSWD" >> $FILE
-    done
-    zenity --info --text="Dodano $NUMBER użytkowników o nazwie podstawowej $NAME"
-    starter
+            fi
+            if [[ "$GROUP" ]]; then
+                LIST=(`getent group | cut -d: -f1`)
+                if [[ "${LIST[@]}" =~ "$GROUP" ]]; then
+                    CMD="$CMD -g $GROUP"
+                else
+                    zenity --error --text="Taka grupa nie istnieje"
+                    starter
+                    return
+                fi
+            fi
+            if [[ "$EXPIRES" ]]; then
+                    EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
+                    CMD="$CMD -e $EXPIRES"
+            fi
+            CMD="$CMD -p $PASSWD"
+            if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
+                LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
+                    if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                        zenity --error --text="Użytkownik o takiej nazwie już istnieje"
+                        starter
+                        return
+                    else
+                        CMD="$CMD $NAME"
+                    fi
+            else
+                zenity --error --text="Nazwa musi rozpoczynać się od litery."
+                starter
+                return
+            fi
+            eval "$CMD"
+            echo "$NAME$I $PASSWD" >> $FILE
+        done
+        zenity --info --text="Dodano $NUMBER użytkowników o nazwie podstawowej $NAME"
+        starter
+    else
+        zenity --error --text="Liczba użytkowników musi być większa od 0."
+        starter
+        return
+    fi
 }
 
 info(){
