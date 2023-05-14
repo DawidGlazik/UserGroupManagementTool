@@ -1,4 +1,23 @@
 #!/bin/bash
+# Author           : Dawid Glazik
+# Created On       : 03.05.2023
+# Last Modified By : Dawid Glazik
+# Last Modified On : 11.05.2023 
+# Version          : 1.1
+#
+# Description      :
+# Program wykorzystuje bibliotekę zenity. Do poprawnego 
+# działania wymagane jest zainstalowanie polecenia finger. 
+# Inspiracją do stworzenia tego programu była przystawka 
+# lusrmgr.msc z Windowsa. Program pozwala na wykonanie takich 
+# operacji jak: dodanie użytkownika, usunięcie użytkownika, 
+# zmianę parametrów użytkownika, dodanie grupy, usunięcie 
+# grupy, modyfikację grupy, dodanie szeregu użytkowników na 
+# podstawie podanych danych. Hasła do wygenerowanych kont 
+# użytkowników pojawią się w pliku o nazwie 
+# „bazowa_nazwa_użytkownika_PASSWORDS”.
+#
+# Free to use
 
 help(){
     echo ""
@@ -134,11 +153,11 @@ addUser(){
         	CMD="$CMD -e $EXPIRES"
 	fi
     if [[ "$PASSWORD" && $PASSWORD -eq $CONFIRM_PASSWD ]]; then
-        CMD="$CMD -p $PASSWORD"
+        CMD="$CMD -p $(openssl passwd -1 $PASSWORD)"
     fi
     if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
         LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
-            if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+            if [[ "${LIST[@]}" == "$NAME" ]]; then
                 zenity --error --text="Użytkownik o takiej nazwie już istnieje"
                 starter
                 return
@@ -523,7 +542,7 @@ addMany(){
     done
     TMP="_PASSWORDS"
     FILE="$NAME$TMP"
-    if [[ "$NUMBER" =~ ^[1-9]{1}\d*$ ]]; then
+    if [[ "$NUMBER" =~ ^[1-9]{1}[0-9]*$ ]]; then
         for ((I=1; I<=$NUMBER; I++))
         do
             PASSWD=`openssl rand -base64 9 | head -c12`
@@ -551,15 +570,15 @@ addMany(){
                     EXPIRES=`date -d "$(echo "$EXPIRES" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3-\2-\1/')" +%Y-%m-%d`
                     CMD="$CMD -e $EXPIRES"
             fi
-            CMD="$CMD -p $PASSWD"
+            CMD="$CMD -p $(openssl passwd -1 $PASSWD)"
             if [[ "$NAME" =~ ^[a-zA-Z]+.*$ ]]; then
                 LIST=(`getent passwd {1000..2000} | cut -d: -f1`)
-                    if [[ "${LIST[@]}" =~ "$NAME" ]]; then
+                    if [[ "${LIST[@]}" == "$NAME" ]]; then
                         zenity --error --text="Użytkownik o takiej nazwie już istnieje"
                         starter
                         return
                     else
-                        CMD="$CMD $NAME"
+                        CMD="$CMD $NAME$I"
                     fi
             else
                 zenity --error --text="Nazwa musi rozpoczynać się od litery."
