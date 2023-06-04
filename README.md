@@ -1,6 +1,6 @@
 # UserGroupManagementTool
 ## Simple bash program with zenity
-lusrmgr.mmc program in Windows inspired me to create this program in bash
+lusrmgr.msc program in Windows inspired me to create this program in bash
 ### Features
   * Adding user
   * Deleteing user
